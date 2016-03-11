@@ -1,4 +1,8 @@
 import sys
+import logging
+import logging.handlers
+import os
+
 reload(sys)
 sys.setdefaultencoding('utf8')
 
@@ -15,6 +19,26 @@ from irc import bot
 NAME = 'luser'
 lusers = []
 luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME)
+logger = logging.getLogger(__name__)
+
+
+def setup_logging(logfile, verbose, work_dir):
+  log_path = os.path.join(work_dir, 'log')
+  if not os.path.isdir(log_path):
+    os.mkdir(log_path)
+
+  formatter = logging.Formatter('%(asctime)-15s (%(name)s) %(message)s')
+  log_level = logging.DEBUG if verbose else logging.INFO
+
+  if logfile:
+    logfile = os.path.join(log_path, logfile)
+    file_log = logging.handlers.TimedRotatingFileHandler(
+      logfile,
+      when="midnight",
+      backupCount=31)
+    file_log.setLevel(log_level)
+    file_log.setFormatter(formatter)
+    logger.addHandler(file_log)
 
 def change_nick(c, e):
     from random import randint
@@ -103,17 +127,20 @@ with open('wolframalpha_key') as f:
     wolframalpha_key = f.read()
 def wolframalpha(text):
     import xml.etree.ElementTree as ET
-    with urlopen('http://api.wolframalpha.com/v2/query?format=plaintext&appid={}&input={}'.format(wolframalpha_key, quote(text))) as r:
-        tree = ET.parse(r)
-        reply = ''
-        for n in tree.iter():
-            if n.tag == 'pod':
-                reply += n.attrib['title'] + ': '
-            if n.tag == 'plaintext' and n.text and len(n.text.strip()):
-                reply += n.text + ' / '
-        if len(reply) > 512:
-            reply = reply[:200] + " http://wolframalpha.com/?input=" + quote(text)
-        return reply.replace('\n', ' ')
+    try:
+      with urlopen('http://api.wolframalpha.com/v2/query?format=plaintext&appid={}&input={}'.format(wolframalpha_key, quote(text))) as r:
+          tree = ET.parse(r)
+          reply = ''
+          for n in tree.iter():
+              if n.tag == 'pod':
+                  reply += n.attrib['title'] + ': '
+              if n.tag == 'plaintext' and n.text and len(n.text.strip()):
+                  reply += n.text + ' / '
+          if len(reply) > 512:
+              reply = reply[:200] + " http://wolframalpha.com/?input=" + quote(text)
+          return reply.replace('\n', ' ')
+    except Exception as e:
+      logger.error('Got exception', e)
 
 def title(text):
     titles = []
@@ -124,7 +151,7 @@ def title(text):
                 title = BeautifulSoup(r.read(50000), 'html.parser').title
                 if title: titles.append(title.string.replace('\n', '').strip())
         except HTTPError as e:
-            print(u, "causes", e)
+            logger.error(u, "causes", e)
             continue
     return ' / '.join(titles)
 
@@ -143,4 +170,7 @@ def translate(text):
     except HTTPError:
         return "Unsupported language or wrong key"
 
-luser.start()
+
+if __name__ == '__main__':
+  setup_logging('ircbot.log', True, os.path.dirname(os.path.realpath(__file__)))
+  luser.start()
