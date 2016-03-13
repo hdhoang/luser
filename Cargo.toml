@@ -1,15 +1,14 @@
+
 [package]
 name = "luser"
 version = "0.1.0"
 authors = ["Hoàng Đức Hiếu <hdhoang@hdhoang.space>"]
 
 [dependencies]
+irc = "*"
 scraper = "*"
 hyper = "*"
 regex = "*"
 quick-xml = "*"
 rustc-serialize = "*"
 url = "*"
-
-[dependencies.irc]
-git = "https://github.com/aatxe/irc"
