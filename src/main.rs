@@ -1,3 +1,6 @@
+
+// Importing dependencies. Python really comes with batteries.
+
 extern crate regex;
 extern crate irc;
 extern crate scraper;
@@ -12,41 +15,24 @@ use hyper::client::Client;
 use std::io::Read;
 use std::collections::HashMap;
 
-const CHANNEL: &'static str = "#vnluser";
+// Set up connection details. People should claim their names here.
+
 const NAME: &'static str = "luser";
-
-#[derive(Debug)]
-enum Error {
-    Data(String),
-    Io(std::io::Error),
-    Hyper(hyper::error::Error),
-    Xml(quick_xml::error::Error),
-    Json(rustc_serialize::json::ParserError),
-}
-
-struct Handler<'a>(Regex, &'a (Fn(&Regex, &str) -> Result<String, Error>));
-impl<'a> Handler<'a> {
-    fn can_handle(&self, line: &str) -> bool {
-        self.0.is_match(&line)
-    }
-    fn run(&self, line: &str) -> Result<String, Error> {
-        self.1(&self.0, &line)
-    }
-}
-
 fn main() {
     let freenode = IrcServer::from_config(Config {
                        owners: Some(vec!["hdhoang".into()]),
                        username: Some(NAME.into()),
-                       nickname: Some(format!("{}-0", NAME)),
-                       alt_nicks: Some((1..10).map(|n| format!("{}-{}", NAME, n)).collect()),
+                       nickname: Some(format!("{}", NAME)),
+                       alt_nicks: Some((0..10).map(|n| format!("{}-{}", NAME, n)).collect()),
                        server: Some("chat.freenode.net".into()),
                        port: Some(8000),
-                       channels: Some(vec![String::from(CHANNEL), format!("#{}-test", NAME)]),
+                       channels: Some(vec![format!("#vn{}", NAME), format!("#{}-test", NAME)]),
                        ..Default::default()
                    })
                        .unwrap();
     freenode.identify().unwrap();
+
+    // Handling scaffolding
 
     let get_title = &get_title;
     let wolframalpha = &wolframalpha;
@@ -57,12 +43,10 @@ fn main() {
                     Handler(Regex::new(GOOGLE_REGEX).unwrap(), google),
                     Handler(Regex::new(TRANSLATE_REGEX).unwrap(), translate)];
 
-    let mut lusers = vec![];
     let mut last_lines = HashMap::new();
+    let mut lusers = vec![];
     'messages: for message in freenode.iter() {
         let msg = message.unwrap();
-
-        // Get other lusers
         if let Command::Response(Response::RPL_NAMREPLY, _, Some(ref names)) = msg.command {
             lusers.extend(names.split(' ')
                                .filter(|n| n.starts_with(NAME))
@@ -75,21 +59,27 @@ fn main() {
             continue 'messages;
         }
         if let Some(nick) = msg.source_nickname() {
+
             // Ignore bots and freenode
+
             if nick.contains("bot") || nick.contains("freenode") {
                 continue 'messages;
             }
+
+            // Update <<botname>>s list
+
             if nick.starts_with(NAME) {
                 let nick = String::from(nick);
-                // Update lusers list
                 match msg.command {
-                    // Do not merge the following arms
-                    // Otherwise join -> insert -> join -> remove might happen
+
+                    // Do not merge the following arms. Otherwise a join #c1 -> insert ->
+                    //    join #c2 -> remove sequence might happen.
                     Command::JOIN(..) => {
                         if let Err(idx) = lusers.binary_search(&nick) {
                             lusers.insert(idx, nick)
                         }
                     }
+
                     Command::QUIT(..) => {
                         if let Ok(idx) = lusers.binary_search(&nick) {
                             lusers.remove(idx);
@@ -97,10 +87,13 @@ fn main() {
                     }
                     _ => (),
                 }
-                // Ignore them
+
                 continue 'messages;
             }
         }
+
+        // =trimmed_line= is here to hoist the trimmed line out of its
+        //    assignment block. Rust: the compiler knows better than you do.
 
         let channel;
         let trimmed_line;
@@ -170,6 +163,32 @@ fn main() {
     }
 }
 
+// Rust handler scaffolding: casting into a common =Error= type and
+//    associating regexes with their handling function. Rust is
+//    surprisingly more object-happy than python.
+
+#[derive(Debug)]
+enum Error {
+    Data(String),
+    Io(std::io::Error),
+    Hyper(hyper::error::Error),
+    Xml(quick_xml::error::Error),
+    Json(rustc_serialize::json::ParserError),
+}
+
+struct Handler<'a>(Regex, &'a (Fn(&Regex, &str) -> Result<String, Error>));
+impl<'a> Handler<'a> {
+    fn can_handle(&self, line: &str) -> bool {
+        self.0.is_match(&line)
+    }
+    fn run(&self, line: &str) -> Result<String, Error> {
+        self.1(&self.0, &line)
+    }
+}
+
+// Get title from URLs. The rust version only grabs the first URL in
+//    each message, but it ignores a list of uninteresting domains.
+
 const TITLE_REGEX: &'static str = r"https?:[^\s]+";
 fn get_title(regex: &Regex, line: &str) -> Result<String, Error> {
     use hyper::header::{UserAgent, Cookie, CookiePair};
@@ -207,6 +226,8 @@ fn get_title(regex: &Regex, line: &str) -> Result<String, Error> {
     }
 }
 
+// Ask Wolfram|Alpha, the knowledge engine.
+
 const WA_REGEX: &'static str = concat!(r"^(\.|!|:)", "wa (?P<query>.+)");
 fn wolframalpha(regex: &Regex, line: &str) -> Result<String, Error> {
     use hyper::header::ContentLength;
@@ -215,10 +236,9 @@ fn wolframalpha(regex: &Regex, line: &str) -> Result<String, Error> {
     let mut response = try!(Client::new()
                                 .get(&regex.captures(&line)
                                            .unwrap()
-                                           .expand(&format!("http://api.wolframalpha.\
-                                                             com/v2/query?format=plaintext&app\
-                                                             id={}&input=$query",
-                                                            include_str!("wolframalpha_key"))))
+                                           .expand("http://api.wolframalpha.\
+                                                    com/v2/query?format=plaintext&appid=\
+                                                    3JEW42-4XXE264A93&input=$query"))
                                 .send()
                                 .map_err(Error::Hyper));
     let mut xml =
@@ -228,6 +248,9 @@ fn wolframalpha(regex: &Regex, line: &str) -> Result<String, Error> {
     let mut answers = vec![];
     for event in tree {
         match event {
+
+            // I would like to prefix each answer with its pod's title, but the
+            //    attributes iterator is failing here.
             Ok(Event::Start(ref elem)) if elem.name() == b"pod" => {
                 println!("{:?}", elem.clone().into_string());
                 println!("{:?}", elem.attributes().collect::<Vec<_>>())
@@ -236,8 +259,10 @@ fn wolframalpha(regex: &Regex, line: &str) -> Result<String, Error> {
             _ => (),
         }
     }
-    Ok(answers.join(" | "))
+    Ok(answers.join(" / "))
 }
+
+// Returns the first Google result.
 
 const GOOGLE_REGEX: &'static str = concat!(r"^(\.|!|:)", "g (?P<query>.+)");
 fn google(regex: &Regex, line: &str) -> Result<String, Error> {
@@ -267,18 +292,19 @@ fn google(regex: &Regex, line: &str) -> Result<String, Error> {
     Ok(format!("{} {}", title, url))
 }
 
+// Translates using [[https://tech.yandex.com/translate/doc/dg/reference/translate-docpage/][Yandex]]:
+
 const TRANSLATE_REGEX: &'static str = concat!(r"^(\.|!|:)", "tr (?P<lang>[^ ]+) (?P<text>.+)");
 fn translate(regex: &Regex, line: &str) -> Result<String, Error> {
     use rustc_serialize::json::Json;
-    // API: https://tech.yandex.com/translate/doc/dg/reference/translate-docpage/
     let mut response = try!(Client::new()
                                 .get(&regex.captures(&line)
                                            .unwrap()
-                                           .expand(&format!("https://translate.yandex.\
-                                                             net/api/v1.5/tr.\
-                                                             json/translate?key={}&text=$text&\
-                                                             lang=$lang",
-                                                            include_str!("yandex_key"))))
+                                           .expand("https://translate.yandex.net/api/v1.5/tr.\
+                                                    json/translate?key=trnsl.1.1.\
+                                                    20160210T093900Z.c6eacf09bbb65cfb.\
+                                                    cc28de2ba798bc3bc118e9f8201b6e6cea697810&te\
+                                                    xt=$text&lang=$lang"))
                                 .send()
                                 .map_err(Error::Hyper));
     let json = try!(Json::from_reader(&mut response).map_err(Error::Json));
@@ -293,6 +319,8 @@ fn translate(regex: &Regex, line: &str) -> Result<String, Error> {
     };
     Ok(reply)
 }
+
+// Posts its own source code:
 
 fn post_source_code() -> String {
     use url::form_urlencoded;
@@ -310,7 +338,7 @@ fn post_source_code() -> String {
         Ok(mut response) => {
             let mut reply = String::new();
             let _ = response.read_to_string(&mut reply);
-            reply
+            reply.replace('\n', " ")
         }
         Err(e) => format!("unable to post: {:?}", e),
     }
