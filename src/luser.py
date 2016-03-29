@@ -2,14 +2,10 @@
 try:
     from urllib.request import urlopen, build_opener
     from urllib.parse import quote
-    from gzip import GzipFile
 except ImportError:
     from urllib2 import urlopen, quote, build_opener
-    from gzip import GzipFile
-    from StringIO import StringIO
 
 from bs4 import BeautifulSoup
-from sys import version_info
 
 from irc import bot
 
@@ -62,7 +58,7 @@ def handle(c, e, msg):
             # Keep PRIVMSG under 512bytes
             c.privmsg(e.target, reply[:512 - len(e.target) - 50])
     except Exception as e:
-       logger.error('%s causes: %s' % (msg, str(e)))
+        logger.error('%s causes: %s' % (msg, str(e)))
 
 # List other <<botname>>s, and update that list when one joins or quits.
 #    This list is used by the <<botname>>s to decide whether to handle
@@ -128,13 +124,14 @@ def title(text):
         request.addheaders = [('Accept-Encoding', 'gzip')]
         response = request.open(u)
         if response.info().get('Content-Encoding') == 'gzip':
-            if version_info > (3, 0):
-                data = GzipFile(fileobj=response)
+            from gzip import GzipFile
+            if '__loader__' in globals():
+                response = GzipFile(fileobj=response)
             else:
-                data = GzipFile(fileobj=StringIO(response.read()))
-        else:
-            data = response
-        title = BeautifulSoup(data.read(50000), 'html.parser').title
+                from StringIO import StringIO
+                response = GzipFile(fileobj=StringIO(response.read()))
+        title = BeautifulSoup(response.read(50000), 'html.parser').title
+        response.close()
         if title: titles.append(title.string.replace('\n', '').strip())
     return ' / '.join(titles)
 
