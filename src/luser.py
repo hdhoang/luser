@@ -1,9 +1,9 @@
 
 try:
-    from urllib.request import urlopen
+    from urllib.request import urlopen, build_opener
     from urllib.parse import quote
 except ImportError:
-    from urllib2 import urlopen, quote
+    from urllib2 import urlopen, quote, build_opener
 
 from bs4 import BeautifulSoup
 
@@ -58,7 +58,7 @@ def handle(c, e, msg):
             # Keep PRIVMSG under 512bytes
             c.privmsg(e.target, reply[:512 - len(e.target) - 50])
     except Exception as e:
-        logger.error(msg, "causes", e)
+        logger.error('%s causes: %s' % (msg, str(e)))
 
 # List other <<botname>>s, and update that list when one joins or quits.
 #    This list is used by the <<botname>>s to decide whether to handle
@@ -85,9 +85,7 @@ def luser_joins(c, e):
         lusers.sort()
 luser.on_join = lambda c, e: e.source.startswith(NAME) and luser_joins(c, e)
 
-def luser_quits(c, e):
-    lusers.remove(e.source.nick)
-luser.on_quit = lambda c, e: e.source.startswith(NAME) and luser_quits(c, e)
+luser.on_quit = lambda c, e: e.source.startswith(NAME) and lusers.remove(e.source.nick)
 
 # Actual message processing. Ignore the other <<botname>>s.
 
@@ -101,7 +99,7 @@ def on_pubmsg(c, e):
     def handling(e):
         return lusers[len(e.source) % len(lusers)] == my_nick
     if msg == "report!":
-        return c.privmsg(e.target, "operated by hdhoang with source code " + post_source())
+        return c.privmsg(e.target, "operated by {} with source code {}".format(os.getenv('USER'), post_source()))
     if msg.startswith('s/'):
         parts = msg.split('/')
         if len(parts) >= 3 and handling(e) and nick in last_lines:
@@ -120,41 +118,56 @@ def title(text):
     titles = []
     urls = filter(lambda w: w.startswith('http'), text.split())
     for u in urls:
-        with urlopen(u) as r:
-            title = BeautifulSoup(r.read(50000), 'html.parser').title
-            if title: titles.append(title.string.replace('\n', '').strip())
+        if any(lambda d: d in u, ['imgur.com', 'smbc-comics.com']):
+               continue
+        request = build_opener()
+        request.addheaders = [('Accept-Encoding', 'gzip')]
+        response = request.open(u)
+        if response.info().get('Content-Encoding') == 'gzip':
+            from gzip import GzipFile
+            if '__loader__' in globals():
+                response = GzipFile(fileobj=response)
+            else:
+                from StringIO import StringIO
+                response = GzipFile(fileobj=StringIO(response.read()))
+        title = BeautifulSoup(response.read(50000), 'html.parser').title
+        response.close()
+        if title: titles.append(title.string.replace('\n', '').strip())
     return ' / '.join(titles)
 
 def wolframalpha(text):
     import xml.etree.ElementTree as ET
-    with urlopen('http://api.wolframalpha.com/v2/query?format=plaintext&appid=3JEW42-4XXE264A93&input=' + quote(text)) as r:
-        tree = ET.parse(r)
-        reply = ''
-        for n in tree.iter():
-            if n.tag == 'pod':
-                reply += n.attrib['title'] + ': '
-            if n.tag == 'plaintext' and n.text and len(n.text.strip()):
-                reply += n.text + ' / '
-        if len(reply) > 512:
-            reply = reply[:200] + " http://wolframalpha.com/?input=" + quote(text)
-        return reply.replace('\n', ' ')
+    r = urlopen('http://api.wolframalpha.com/v2/query?format=plaintext&appid=3JEW42-4XXE264A93&input=' + quote(text))
+    tree = ET.parse(r)
+    reply = ''
+    for n in tree.iter():
+        if n.tag == 'pod':
+            reply += n.attrib['title'] + ': '
+        if n.tag == 'plaintext' and n.text and len(n.text.strip()):
+            reply += n.text + ' / '
+    if len(reply) > 512:
+        reply = reply[:200] + " http://wolframalpha.com/?input=" + quote(text)
+    r.close()
+    return reply.replace('\n', ' ')
 
 def google(text):
     import json
-    with urlopen('https://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=1&q=' + quote(text)) as r:
-        data = json.loads(r.read().decode())['responseData']
-        if not data['results']:
-            return '0 result'
-        return data['results'][0]['titleNoFormatting'] + ' ' + data['results'][0]['unescapedUrl']
+    r = urlopen('https://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=1&q=' + quote(text))
+    data = json.loads(r.read().decode())['responseData']
+    r.close()
+    if not data['results']:
+        return '0 result'
+    return data['results'][0]['titleNoFormatting'] + ' ' + data['results'][0]['unescapedUrl']
 
 def translate(text):
     import json
     (lang, _, text) = text.partition(' ')
     if not text:
         return 'Missing text'
-    with urlopen('https://translate.yandex.net/api/v1.5/tr.json/translate?key=trnsl.1.1.20160210T093900Z.c6eacf09bbb65cfb.cc28de2ba798bc3bc118e9f8201b6e6cea697810&text={}&lang={}'.format(quote(text), lang)) as r:
-        data = json.loads(r.read().decode())
-        return data['lang'] + ": " + data['text'][0]
+    r = urlopen('https://translate.yandex.net/api/v1.5/tr.json/translate?key=trnsl.1.1.20160210T093900Z.c6eacf09bbb65cfb.cc28de2ba798bc3bc118e9f8201b6e6cea697810&text={}&lang={}'.format(quote(text), lang))
+    data = json.loads(r.read().decode())
+    r.close()
+    return data['lang'] + ": " + data['text'][0]
 
 def post_source():
     try:
