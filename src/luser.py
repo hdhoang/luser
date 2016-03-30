@@ -118,7 +118,7 @@ def title(text):
     titles = []
     urls = filter(lambda w: w.startswith('http'), text.split())
     for u in urls:
-        if any(lambda d: d in u, ['imgur.com', 'smbc-comics.com']):
+        if any(d in u for d in ["imgur.com/", "smbc-comics.com/", "libgen.io/"]):
                continue
         request = build_opener()
         request.addheaders = [('Accept-Encoding', 'gzip')]
