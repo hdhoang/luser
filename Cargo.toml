@@ -2,7 +2,7 @@
 [package]
 name = "luser"
 version = "0.1.0"
-authors = ["Hoàng Đức Hiếu <hdhoang@hdhoang.space>"]
+authors = ["Hoàng Đức Hiếu hdhoang@hdhoang.space"]
 
 [dependencies]
 irc = "*"

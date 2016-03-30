@@ -20,9 +20,8 @@ use std::collections::HashMap;
 const NAME: &'static str = "luser";
 fn main() {
     let freenode = IrcServer::from_config(Config {
-                       owners: Some(vec!["hdhoang".into()]),
-                       username: Some(NAME.into()),
-                       nickname: Some(format!("{}", NAME)),
+                       owners: Some(vec![env!("USER").into()]),
+                       nickname: Some(NAME.into()),
                        alt_nicks: Some((0..10).map(|n| format!("{}-{}", NAME, n)).collect()),
                        server: Some("chat.freenode.net".into()),
                        port: Some(8000),
