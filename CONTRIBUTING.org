@@ -15,7 +15,7 @@ Hi, thanks for looking into contributing. These are some features that luser is 
   Like chatbot's, this will speed up testing.
 * TODO NYtimes access
   The cookie needs to be rebaked. Theoretically cloaking as googlebot should work.
-* TODO Pod titles in rust
+* DONE Pod titles in rust
   Quick-xml doesn't return the attributes iterator currently.
 * TODO Reconnection on ping timeout
   [[https://github.com/aatxe/irc/blob/46f9136c93063e8abb01b063df53897615007791/src/client/server/mod.rs#L208][IrcServer should already reconnect automatically]], but possibly ipv6

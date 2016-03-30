@@ -186,16 +186,13 @@ impl<'a> Handler<'a> {
     }
 }
 
-// Get title from URLs. The rust version only grabs the first URL in
-//    each message, but it ignores a list of uninteresting domains.
-
 const TITLE_REGEX: &'static str = r"https?:[^\s]+";
 fn get_title(regex: &Regex, line: &str) -> Result<String, Error> {
     use hyper::header::{UserAgent, Cookie, CookiePair};
     use scraper::{Html, Selector};
 
     let url = regex.captures(&line).unwrap().expand("$0");
-    if ["imgur.com/", "smbc-comics.com/"].iter().any(|uninteresting| url.contains(uninteresting)) {
+    if ["imgur.com/", "smbc-comics.com/", "libgen.io/"].iter().any(|domain| url.contains(domain)) {
         return Ok(String::new());
     }
     let mut response = try!(Client::new()
@@ -248,18 +245,22 @@ fn wolframalpha(regex: &Regex, line: &str) -> Result<String, Error> {
     let mut answers = vec![];
     for event in tree {
         match event {
-
-            // I would like to prefix each answer with its pod's title, but the
-            //    attributes iterator is failing here.
             Ok(Event::Start(ref elem)) if elem.name() == b"pod" => {
-                println!("{:?}", elem.clone().into_string());
-                println!("{:?}", elem.attributes().collect::<Vec<_>>())
+                answers.push(String::from_utf8(try!(elem.attributes()
+                                                        .next()
+                                                        .unwrap()
+                                                        .map_err(Error::Xml))
+                                                   .1
+                                                   .into())
+                                 .unwrap() + ": ")
             }
-            Ok(Event::Text(e)) => answers.push(try!(e.into_string().map_err(Error::Xml))),
+            Ok(Event::Text(elem)) => {
+                answers.push(try!(elem.into_string().map_err(Error::Xml)) + " /")
+            }
             _ => (),
         }
     }
-    Ok(answers.join(" / "))
+    Ok(answers.join(" "))
 }
 
 // Returns the first Google result.
