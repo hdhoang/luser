@@ -1,5 +1,10 @@
 
 # -*- coding: utf-8 -*-
+# external batteries
+from bs4 import BeautifulSoup
+from irc import bot
+
+from collections import defaultdict
 from sys import version_info
 from random import randint
 from gzip import GzipFile
@@ -18,10 +23,6 @@ else:
     import sys
     reload(sys)
     sys.setdefaultencoding('utf8')
-
-from bs4 import BeautifulSoup
-
-from irc import bot
 
 # Set up logging.
 
@@ -49,7 +50,9 @@ def main():
     luser.start()
 
 def change_nick(c, e):
-    c.nick('{}-{}'.format(NAME, str(randint(0, 9))))
+    new_nick = '{}-{}'.format(NAME, str(randint(0, 9)))
+    print("Changing nick to", new_nick)
+    c.nick(new_nick)
 luser.on_nicknameinuse = change_nick
 
 def join_channels(c, e):
@@ -62,6 +65,10 @@ def handle(c, e, msg):
         if 'http' in msg:
             c.privmsg(e.target, title(msg))
         if msg[0] not in ('.', '!', ':'): return
+        if msg[1:6] == 'tell ':
+            source = e.source.nick
+            (target, _, line) = msg[6:].partition(' ')
+            return relay_msg[target].append((source, line))
         reply = ''
         if msg[1:3] == 'g ':
             reply = google(msg[3:])
@@ -76,7 +83,7 @@ def handle(c, e, msg):
     except Exception as e:
         logger.error('%s causes: %s' % (msg, str(e)))
 
-# List other <<botname>>s, and update that list when one joins or quits.
+# List other lusers, and update that list when one joins or quits.
 #    This list is used by the lusers to decide whether to handle
 #    unaddressed messages. If the length of the IRC prefix
 #    'nick!user@host' for a message indexes to its name, that luser
@@ -93,20 +100,33 @@ def list_lusers(c, e):
     lusers.sort()
 luser.on_namreply = list_lusers
 
+relay_msg = defaultdict(list) # dict<nick, [(source, line)]>
+def relay(c, target, nick):
+    for (source, line) in relay_msg[nick]:
+        c.privmsg(target, "{}: <{}> {}".format(nick, source, line))
+    del relay_msg[nick]
+luser.on_nick = lambda c, e: relay(c, "#vnluser", e.target)
+
 # The next lambdas are abusing python logical operator, but they read
 #    like English.
 
-def luser_joins(c, e):
+def luser_joins(e):
     if e.source.nick not in lusers:
         lusers.append(e.source.nick)
         lusers.sort()
-luser.on_join = lambda c, e: e.source.startswith(NAME) and luser_joins(c, e)
+
+def on_join(c, e):
+    nick = e.source.nick
+    if nick.startswith(NAME):
+        return luser_joins(e)
+    relay(c, e.target, nick)
+luser.on_join = on_join
 
 luser.on_quit = lambda c, e: e.source.startswith(NAME) and lusers.remove(e.source.nick)
 
-# Actual message processing. Ignore the other <<botname>>s.
+# Actual message processing. Ignore the other lusers.
 
-last_lines = {}
+last_lines = {} # dict<nick, line>
 def on_pubmsg(c, e):
     nick = e.source.nick
     if nick.startswith(NAME): return
@@ -115,16 +135,17 @@ def on_pubmsg(c, e):
     if msg == "report!":
         return c.privmsg(e.target, "operated by {} with source code {}".format(
             os.getenv('USER'), post_source()))
-    addressed = msg.startswith(my_nick)
     def handling(e):
         return lusers[len(e.source) % len(lusers)] == my_nick
     if msg.startswith('s/'):
         parts = msg.split('/')
-        if len(parts) >= 3 and handling(e) and nick in last_lines:
+        if (len(parts) >= 3 and handling(e)
+            and nick in last_lines and last_lines[nick].contains(parts[1])):
             return c.privmsg(e.target, "{} meant: {}".format(
                 nick, last_lines[nick].replace(parts[1], parts[2])))
     else:
         last_lines[nick] = msg
+    addressed = msg.startswith(my_nick)
     if addressed or handling(e):
         if addressed:
             msg = msg[len(my_nick) + 2:]  # remove addressing
