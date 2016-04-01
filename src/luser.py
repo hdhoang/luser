@@ -133,14 +133,13 @@ def on_pubmsg(c, e):
     my_nick = c.get_nickname()
     msg = e.arguments[0]
     if msg == "report!":
-        return c.privmsg(e.target, "operated by {} with source code {}".format(
-            os.getenv('USER'), post_source()))
+        return c.privmsg(e.target, report())
     def handling(e):
         return lusers[len(e.source) % len(lusers)] == my_nick
     if msg.startswith('s/'):
         parts = msg.split('/')
         if (len(parts) >= 3 and handling(e)
-            and nick in last_lines and last_lines[nick].contains(parts[1])):
+            and nick in last_lines and parts[1] in last_lines[nick]):
             return c.privmsg(e.target, "{} meant: {}".format(
                 nick, last_lines[nick].replace(parts[1], parts[2])))
     else:
