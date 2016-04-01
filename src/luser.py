@@ -269,18 +269,19 @@ def translate(direction, text):
     r.close()
     return data['lang'] + ": " + data['text'][0]
 
-def post_source():
+def report():
     """
-    Post this source code online.
+    Return owner and source code
 
-    >>> print(post_source()) # doctest: +ELLIPSIS
-    http://ix.io/...
+    >>> print(report()) # doctest: +ELLIPSIS
+    operated by ... with source code http://ix.io/...
     """
     conn = HTTPConnection('ix.io')
     conn.request(
         'POST', '/',
         'read:1=3&name:1=luser.py&f:1=' + quote(open(__file__).read()))
-    return conn.getresponse().read().decode().strip()
+    return "operated by {} with source code {}".format(
+            os.getenv('USER'), conn.getresponse().read().decode().strip())
 
 if __name__ == '__main__':
     main()
