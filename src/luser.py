@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # external batteries
 from bs4 import BeautifulSoup
-from irc import bot
+from irc import bot, connection
 
 from collections import defaultdict
 from sys import version_info
@@ -43,7 +43,8 @@ def setup_logging(filename, path=None, verbose=False):
     logger.addHandler(file_log)
 
 NAME = "luser"
-luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME)
+luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME
+                                     connect_factory=connection.Factory(ipv6=True))
 
 def main():
     setup_logging("luser.log")
@@ -54,6 +55,8 @@ def change_nick(c, e):
     print("Changing nick to", new_nick)
     c.nick(new_nick)
 luser.on_nicknameinuse = change_nick
+
+luser.on_nickcollision = lambda c, _: c.reconnect()
 
 def join_channels(c, e):
     c.join("#{}-test".format(NAME))
@@ -95,8 +98,6 @@ def list_lusers(c, e):
                               e.arguments[-1].split(' ')):
         if luser not in lusers:
             lusers.append(luser)
-    if c.get_nickname() not in lusers:
-        c.reconnect()
     lusers.sort()
 luser.on_namreply = list_lusers
 
@@ -126,7 +127,7 @@ luser.on_quit = lambda c, e: e.source.startswith(NAME) and lusers.remove(e.sourc
 
 # Actual message processing. Ignore the other lusers.
 
-last_lines = {} # dict<nick, line>
+last_lines = defaultdict(list) # dict<nick, line>
 def on_pubmsg(c, e):
     nick = e.source.nick
     if nick.startswith(NAME): return
@@ -139,7 +140,7 @@ def on_pubmsg(c, e):
     if msg.startswith('s/'):
         parts = msg.split('/')
         if (len(parts) >= 3 and handling(e)
-            and nick in last_lines and parts[1] in last_lines[nick]):
+            and parts[1] in last_lines[nick]):
             return c.privmsg(e.target, "{} meant: {}".format(
                 nick, last_lines[nick].replace(parts[1], parts[2])))
     else:
@@ -172,6 +173,9 @@ def title(text):
 
     >>> print(title('http://news.zing.vn/chi-tiet-ban-do-cam-duong-dip-29-o-ha-noi-post574142.html'))
     Chi tiết bản đồ cấm đường dịp 2/9 ở Hà Nội - Thời sự - Zing.vn
+
+    >>> print(title('https://www.facebook.com/photo.php?fbid=261863914155282&set=a.261860180822322.1073742015.100009950253866&type=3&theater'))
+    Vo Thanh Thuy - Vo Thanh Thuy added 10 new photos to the... | Facebook
     """
     titles = []
     urls = filter(lambda w: w.startswith('http'), text.split())
@@ -180,7 +184,7 @@ def title(text):
                for d in ["imgur.com/", "smbc-comics.com/", "libgen.io/"]):
             continue
         request = build_opener(HTTPCookieProcessor())
-        request.addheaders = [('Accept-Encoding', 'gzip')]
+        request.addheaders = [('Accept-Encoding', 'gzip'), ('User-Agent', 'Mozilla/5.0')]
         response = request.open(u)
         if response.info().get('Content-Encoding') == 'gzip':
             if version_info.major == 3:
