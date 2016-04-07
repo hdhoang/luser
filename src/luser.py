@@ -43,7 +43,7 @@ def setup_logging(filename, path=None, verbose=False):
     logger.addHandler(file_log)
 
 NAME = "luser"
-luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME
+luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME,
                                      connect_factory=connection.Factory(ipv6=True))
 
 def main():
