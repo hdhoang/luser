@@ -5,14 +5,14 @@ from bs4 import BeautifulSoup
 from irc import bot, connection
 
 from collections import defaultdict
-from sys import version_info
 from random import randint
 from gzip import GzipFile
 import xml.etree.ElementTree as ET
 import json
+import sys
 import os
 
-if version_info.major == 3:
+if sys.version_info.major == 3:
     from urllib.request import urlopen, build_opener, HTTPCookieProcessor
     from urllib.parse import quote
     from http.client import HTTPConnection
@@ -20,7 +20,6 @@ else:
     from urllib2 import urlopen, quote, build_opener, HTTPCookieProcessor
     from httplib import HTTPConnection
     from StringIO import StringIO
-    import sys
     reload(sys)
     sys.setdefaultencoding('utf8')
 
@@ -63,10 +62,14 @@ def join_channels(c, e):
     c.join("#vn" + NAME)
 luser.on_welcome = join_channels
 
+def handling(c, e):
+    return lusers[len(e.source) % len(lusers)] == c.get_nickname()
+
 def handle(c, e, msg):
     try:
-        if 'http' in msg:
-            c.privmsg(e.target, title(msg))
+        titles = title(msg)
+        if titles and handling(c, e):
+            c.privmsg(e.target, titles)
         if msg[0] not in ('.', '!', ':'): return
         if msg[1:6] == 'tell ':
             source = e.source.nick
@@ -84,7 +87,7 @@ def handle(c, e, msg):
             # Keep PRIVMSG under 512bytes
             c.privmsg(e.target, reply[:512 - len(e.target) - 50])
     except Exception as e:
-        logger.error('%s causes: %s' % (msg, str(e)))
+        logger.error('"%s" causes: %s' % (msg, str(e)))
 
 # List other lusers, and update that list when one joins or quits.
 #    This list is used by the lusers to decide whether to handle
@@ -135,26 +138,30 @@ def on_pubmsg(c, e):
     msg = e.arguments[0]
     if msg == "report!":
         return c.privmsg(e.target, report())
-    def handling(e):
-        return lusers[len(e.source) % len(lusers)] == my_nick
     if msg.startswith('s/'):
         parts = msg.split('/')
-        if (len(parts) >= 3 and handling(e)
+        if (len(parts) >= 3 and handling(c, e)
             and parts[1] in last_lines[nick]):
             return c.privmsg(e.target, "{} meant: {}".format(
                 nick, last_lines[nick].replace(parts[1], parts[2])))
     else:
         last_lines[nick] = msg
     addressed = msg.startswith(my_nick)
-    if addressed or handling(e):
+    if addressed or handling(c, e) or 'http' in msg:
         if addressed:
             msg = msg[len(my_nick) + 2:]  # remove addressing
+            if msg.startswith('quit'): sys.exit()
+            if msg.startswith('reload'):
+                os.execl(sys.executable, NAME, __file__)
         handle(c, e, msg)
 luser.on_pubmsg = on_pubmsg
 
 def title(text):
     """
     Retrieve titles from URL in text.
+
+    >>> len(title('no url here'))
+    0
 
     TODO This case should ignore the 404.
     >>> print(title('https://hdhoang.space/404 https://hdhoang.space/')) # doctest: +IGNORE_EXCEPTION_DETAIL
@@ -175,25 +182,29 @@ def title(text):
     Chi tiết bản đồ cấm đường dịp 2/9 ở Hà Nội - Thời sự - Zing.vn
 
     >>> print(title('https://www.facebook.com/photo.php?fbid=261863914155282&set=a.261860180822322.1073742015.100009950253866&type=3&theater'))
-    Vo Thanh Thuy - Vo Thanh Thuy added 10 new photos to the... | Facebook
+    Vo Thanh Thuy - Vo Thanh Thuy added 8 new photos to the... | Facebook
+
+    >>> print(title('https://imgur.com/M18GYfw?r https://imgur.com/GUFyoUa?r'))
+    Glorious new key cap set for my work keyboard! - Imgur
     """
+    uninteresting = ["XKCDB: The: The #xkcd Quote Database", "Saturday Morning Breakfast Cereal", "Library Genesis"]
     titles = []
     urls = filter(lambda w: w.startswith('http'), text.split())
     for u in urls:
-        if any(d in u
-               for d in ["imgur.com/", "smbc-comics.com/", "libgen.io/"]):
-            continue
         request = build_opener(HTTPCookieProcessor())
         request.addheaders = [('Accept-Encoding', 'gzip'), ('User-Agent', 'Mozilla/5.0')]
         response = request.open(u)
         if response.info().get('Content-Encoding') == 'gzip':
-            if version_info.major == 3:
+            if sys.version_info.major == 3:
                 response = GzipFile(fileobj=response)
             else:
                 response = GzipFile(fileobj=StringIO(response.read()))
         title = BeautifulSoup(response.read(50000), 'html.parser').title
         response.close()
-        if title: titles.append(title.string.replace('\n', '').strip())
+        if (title
+            and 'Imgur:' not in title.string
+            and title.string not in uninteresting):
+            titles.append(title.string.replace('\n', '').strip())
     return ' / '.join(titles)
 
 def wolframalpha(text):
