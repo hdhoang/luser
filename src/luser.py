@@ -152,7 +152,7 @@ def on_pubmsg(c, e):
             msg = msg[len(my_nick) + 2:]  # remove addressing
             if msg.startswith('quit'): sys.exit()
             if msg.startswith('reload'):
-                os.execl(sys.executable, NAME, __file__)
+                os.execl(sys.executable, sys.executable, __file__)
         handle(c, e, msg)
 luser.on_pubmsg = on_pubmsg
 
