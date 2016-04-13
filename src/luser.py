@@ -16,10 +16,13 @@ if sys.version_info.major == 3:
     from urllib.request import urlopen, build_opener, HTTPCookieProcessor
     from urllib.parse import quote
     from http.client import HTTPConnection
+    import html
 else:
     from urllib2 import urlopen, quote, build_opener, HTTPCookieProcessor
     from httplib import HTTPConnection
     from StringIO import StringIO
+    from htmlparser import HTMLParser
+    html = HTMLParser()
     reload(sys)
     sys.setdefaultencoding('utf8')
 
@@ -243,6 +246,9 @@ def google(text):
     >>> print(google('á'))
     Á - Wikipedia, the free encyclopedia https://en.wikipedia.org/wiki/%C3%81
 
+    >>> print(google('trump south-china sea'))
+    Donald Trump weighs in on China's island-building in the South ... http://www.politifact.com/truth-o-meter/statements/2016/apr/04/donald-trump/donald-trump-weighs-chinas-island-building-south-c/
+
     >>> print(google('naesuth no result here'))
     0 result
     """
@@ -253,7 +259,7 @@ def google(text):
     r.close()
     if not data['results']:
         return '0 result'
-    return data['results'][0]['titleNoFormatting'] + \
+    return html.unescape(data['results'][0]['titleNoFormatting']) + \
     ' ' +  data['results'][0]['unescapedUrl']
 
 def translate(direction, text):
