@@ -1,4 +1,6 @@
-See the bot in action at [[irc:chat.freenode.net/#luser-test][its test channel]].
+See the bot in action at [[irc:chat.freenode.net/#luser-test][its test channel, #luser-test]].
+
+* Rust version
 
 Building for ARM is a bit convoluted:
 
@@ -9,3 +11,11 @@ Building for ARM is a bit convoluted:
      TARGET_CFLAGS="-I $PWD" cargo rustc --release --target arm-unknown-linux-gnueabihf -- -C linker=arm-linux-gnueabihf-gcc -lz -L $PWD
    #+END_SRC
 4. Copy =target/arm-unknown-linux-gnueabihf/release/luser= to the target
+
+* Python version
+
+Install dependencies: =pip3 install --user bs4 irc=
+
+* Go version
+
+=go run src/luser.go=
