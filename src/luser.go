@@ -21,9 +21,7 @@ import (
 	"regexp"
 	"encoding/json"
 )
-type Message struct {
-	Name, Text string
-}
+
 var host *string = flag.String("host", "irc.freenode.net", "IRC server")
 var channel *string = flag.String("channel", "#vnluser", "IRC channel")
 
@@ -182,8 +180,7 @@ func main() {
 		func (conn *irc.Conn, line *irc.Line) {
 			url := urlRegex.FindString(line.Args[1])
 			if  url != "" {
-				urlTitle := title(url)
-				conn.Privmsg(line.Args[0], urlTitle)
+				conn.Privmsg(line.Args[0], title(url))
 			} else if strings.TrimSpace(line.Args[1]) == ".report" {
 				conn.Privmsg(line.Args[0], "operate by " + os.Getenv("USER") + ", Source code: " + postSource())
 			} else if strings.HasPrefix(line.Args[1], ".g ") {
