@@ -25,7 +25,7 @@ type Message struct {
 	Name, Text string
 }
 var host *string = flag.String("host", "irc.freenode.net", "IRC server")
-var channel *string = flag.String("channel", "#hungtest", "IRC channel")
+var channel *string = flag.String("channel", "#vnluser", "IRC channel")
 
 func postSource() string {
 	_, filename, _, _ := runtime.Caller(1)
