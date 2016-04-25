@@ -184,8 +184,8 @@ def title(text):
     >>> print(title('http://news.zing.vn/chi-tiet-ban-do-cam-duong-dip-29-o-ha-noi-post574142.html'))
     Chi tiết bản đồ cấm đường dịp 2/9 ở Hà Nội - Thời sự - Zing.vn
 
-    >>> print(title('https://www.facebook.com/photo.php?fbid=261863914155282&set=a.261860180822322.1073742015.100009950253866&type=3&theater'))
-    Vo Thanh Thuy - Vo Thanh Thuy added 8 new photos to the... | Facebook
+    >>> print(title('https://www.facebook.com/photo.php?fbid=261863914155282&set=a.261860180822322.1073742015.100009950253866&type=3&theater')) # doctest: +ELLIPSIS
+    Vo Thanh Thuy - Vo Thanh Thuy ... | Facebook
 
     >>> print(title('https://imgur.com/M18GYfw?r https://imgur.com/GUFyoUa?r'))
     Glorious new key cap set for my work keyboard! - Imgur
