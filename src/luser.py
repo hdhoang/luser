@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # external batteries
 from bs4 import BeautifulSoup
-from irc import bot, connection
+from irc import bot
 
 from collections import defaultdict
 from random import randint
@@ -45,8 +45,7 @@ def setup_logging(filename, path=None, verbose=False):
     logger.addHandler(file_log)
 
 NAME = "luser"
-luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME,
-                                     connect_factory=connection.Factory(ipv6=True))
+luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME)
 
 def main():
     setup_logging("luser.log")
