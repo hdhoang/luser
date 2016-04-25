@@ -17,13 +17,13 @@ if sys.version_info.major == 3:
     from urllib.request import urlopen, build_opener, HTTPCookieProcessor
     from urllib.parse import quote
     from http.client import HTTPConnection
-    import html
+    import html.parser as h
 else:
     from urllib2 import urlopen, quote, build_opener, HTTPCookieProcessor
     from httplib import HTTPConnection
     from StringIO import StringIO
-    from htmlparser import HTMLParser
-    html = HTMLParser()
+    from HTMLParser import HTMLParser
+    h = HTMLParser()
     reload(sys)
     sys.setdefaultencoding('utf8')
 
@@ -259,7 +259,7 @@ def google(text):
     r.close()
     if not data['results']:
         return '0 result'
-    return html.unescape(data['results'][0]['titleNoFormatting']) + \
+    return h.unescape(data['results'][0]['titleNoFormatting']) + \
     ' ' +  data['results'][0]['unescapedUrl']
 
 def translate(direction, text):
