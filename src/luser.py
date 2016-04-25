@@ -77,7 +77,7 @@ def handle(c, e, msg):
         if msg[1:6] == 'tell ':
             source = e.source.nick
             (target, _, line) = msg[6:].partition(' ')
-            return relay_msg[target].append((source, line))
+            return relay_msg[target.lower()].append((source, line))
         reply = ''
         if msg[1:3] == 'g ':
             reply = google(msg[3:])
@@ -107,11 +107,11 @@ def list_lusers(c, e):
     lusers.sort()
 luser.on_namreply = list_lusers
 
-relay_msg = defaultdict(list) # dict<nick, [(source, line)]>
+relay_msg = defaultdict(list) # dict<nick.lower(), [(source, line)]>
 def relay(c, target, nick):
-    for (source, line) in relay_msg[nick]:
+    for (source, line) in relay_msg[nick.lower()]:
         c.privmsg(target, "{}: <{}> {}".format(nick, source, line))
-    del relay_msg[nick]
+    del relay_msg[nick.lower()]
 luser.on_nick = lambda c, e: relay(c, "#vnluser", e.target)
 
 # The next lambdas are abusing python logical operator, but they read
