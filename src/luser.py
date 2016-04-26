@@ -1,8 +1,9 @@
+#!/usr/bin/env python3
 
 # -*- coding: utf-8 -*-
 # external batteries
 from bs4 import BeautifulSoup
-from irc import bot, connection
+from irc import bot
 
 from collections import defaultdict
 from random import randint
@@ -16,13 +17,13 @@ if sys.version_info.major == 3:
     from urllib.request import urlopen, build_opener, HTTPCookieProcessor
     from urllib.parse import quote
     from http.client import HTTPConnection
-    import html
+    import html.parser as h
 else:
     from urllib2 import urlopen, quote, build_opener, HTTPCookieProcessor
     from httplib import HTTPConnection
     from StringIO import StringIO
-    from htmlparser import HTMLParser
-    html = HTMLParser()
+    from HTMLParser import HTMLParser
+    h = HTMLParser()
     reload(sys)
     sys.setdefaultencoding('utf8')
 
@@ -45,8 +46,7 @@ def setup_logging(filename, path=None, verbose=False):
     logger.addHandler(file_log)
 
 NAME = "luser"
-luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME,
-                                     connect_factory=connection.Factory(ipv6=True))
+luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME)
 
 def main():
     setup_logging("luser.log")
@@ -77,7 +77,7 @@ def handle(c, e, msg):
         if msg[1:6] == 'tell ':
             source = e.source.nick
             (target, _, line) = msg[6:].partition(' ')
-            return relay_msg[target].append((source, line))
+            return relay_msg[target.lower()].append((source, line))
         reply = ''
         if msg[1:3] == 'g ':
             reply = google(msg[3:])
@@ -107,11 +107,11 @@ def list_lusers(c, e):
     lusers.sort()
 luser.on_namreply = list_lusers
 
-relay_msg = defaultdict(list) # dict<nick, [(source, line)]>
+relay_msg = defaultdict(list) # dict<nick.lower(), [(source, line)]>
 def relay(c, target, nick):
-    for (source, line) in relay_msg[nick]:
+    for (source, line) in relay_msg[nick.lower()]:
         c.privmsg(target, "{}: <{}> {}".format(nick, source, line))
-    del relay_msg[nick]
+    del relay_msg[nick.lower()]
 luser.on_nick = lambda c, e: relay(c, "#vnluser", e.target)
 
 # The next lambdas are abusing python logical operator, but they read
@@ -184,8 +184,8 @@ def title(text):
     >>> print(title('http://news.zing.vn/chi-tiet-ban-do-cam-duong-dip-29-o-ha-noi-post574142.html'))
     Chi tiết bản đồ cấm đường dịp 2/9 ở Hà Nội - Thời sự - Zing.vn
 
-    >>> print(title('https://www.facebook.com/photo.php?fbid=261863914155282&set=a.261860180822322.1073742015.100009950253866&type=3&theater'))
-    Vo Thanh Thuy - Vo Thanh Thuy added 8 new photos to the... | Facebook
+    >>> print(title('https://www.facebook.com/photo.php?fbid=261863914155282&set=a.261860180822322.1073742015.100009950253866&type=3&theater')) # doctest: +ELLIPSIS
+    Vo Thanh Thuy - Vo Thanh Thuy ... | Facebook
 
     >>> print(title('https://imgur.com/M18GYfw?r https://imgur.com/GUFyoUa?r'))
     Glorious new key cap set for my work keyboard! - Imgur
@@ -259,7 +259,7 @@ def google(text):
     r.close()
     if not data['results']:
         return '0 result'
-    return html.unescape(data['results'][0]['titleNoFormatting']) + \
+    return h.unescape(data['results'][0]['titleNoFormatting']) + \
     ' ' +  data['results'][0]['unescapedUrl']
 
 def translate(direction, text):
