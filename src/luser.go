@@ -20,55 +20,78 @@ import (
 	"runtime"
 	"regexp"
 	"encoding/json"
+	// "errors"
 )
 
 var host *string = flag.String("host", "irc.freenode.net", "IRC server")
 var channel *string = flag.String("channel", "#vnluser", "IRC channel")
 
+func createHttpRequest(requestUrl, method string, params map[string]string) (*http.Request, error) {
+	urlValues := url.Values{} 
+	if params != nil {
+		i := 0
+		for k, v := range params {
+			if i == 0 {
+				urlValues.Set(k, v)
+				i = 1
+			} else {
+				urlValues.Add(k, v)
+			}	
+		}
+	}
+	if method == "GET" {
+		return http.NewRequest(method, requestUrl + "?" + urlValues.Encode(), nil)
+	} else {
+		log.Debug("Get here")
+		return http.NewRequest(method, requestUrl,  bytes.NewBufferString(urlValues.Encode()))
+	}
+}  
+
 func postSource() string {
 	_, filename, _, _ := runtime.Caller(1)
 	content, err := ioutil.ReadFile(filename)
-	data := url.Values{}
-	data.Set("f:1", string(content))
-	data.Add("name:1", "luser.go")
-	data.Add("read:1", "2")
-
 	if err != nil {
 		log.Error("Error reading source file", filename)
 	}
-
-	client := new(http.Client)
-	// bytes.NewBufferString(data)
-	request, err := http.NewRequest("POST", "http://ix.io", bytes.NewBufferString(data.Encode()))
-	resp, err := client.Do(request)
-
+	m := make(map[string]string)
+	m["f:1"] = string(content)
+	m["name:1"] = "luser.go"
+	m["read:1"] = "2"
+	request, err := createHttpRequest("http://ix.io", "POST", m)
+	log.Error("Got error", err)
 	if err != nil {
-		log.Error("Cannot post source code", err)
+		log.Error("Error posting source code to ix.io: ", err)
+		return "but i cannot post source code right now"
 	}
-
+	client := new(http.Client)
+	resp, err := client.Do(request)
+	if err != nil {
+		log.Error("Cannot post source code to ix.io: ", err)
+		return "but i cannot post source code right now"
+	}
 	defer resp.Body.Close()
 	u, _ := ioutil.ReadAll(resp.Body)
 	return strings.TrimSpace(string(u))
 }
 
 func google(text string) string {
-	var Url *url.URL
 	result := "No Result"
-	Url, _ = url.Parse("https://ajax.googleapis.com")
-	Url.Path += "/ajax/services/search/web"
-	parameters := url.Values{}
-	parameters.Add("v", "1.0")
-	parameters.Add("rsz", "1")
-	parameters.Add("q", text)
-	Url.RawQuery = parameters.Encode()
-	client := new(http.Client)
-	request, err := http.NewRequest("GET", Url.String(), nil)
-	request.Header.Add("User-Agent", "Mozilla/5.0")
+	m := make(map[string]string)
+	m["v"] = "1.0"
+	m["rsz"] = "1"
+	m["q"] = text
+	
+	request, err := createHttpRequest("https://ajax.googleapis.com/ajax/services/search/web", "GET", m)
+	
 	if err != nil {
-		log.Error("Cannot make request to google api", err)
+		log.Error("Cannot make request to google api ", err)
 		return result
 	}
+	
+	request.Header.Add("User-Agent", "Mozilla/5.0")
+	client := new(http.Client)
 	resp, err := client.Do(request)
+	
 	if err != nil {
 		log.Error("Cannot get response from google api", err)
 		return result
