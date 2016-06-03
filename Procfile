@@ -1,1 +1,1 @@
-web: python src/luser.py
+bot: python src/luser.py
