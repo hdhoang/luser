@@ -1,1 +1,1 @@
-worker: python src/luser.py
+web: python src/luser.py
