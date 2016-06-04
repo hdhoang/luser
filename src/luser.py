@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 # -*- coding: utf-8 -*-
 # external batteries
 from bs4 import BeautifulSoup
@@ -17,13 +16,10 @@ if sys.version_info.major == 3:
     from urllib.request import urlopen, build_opener, HTTPCookieProcessor
     from urllib.parse import quote
     from http.client import HTTPConnection
-    import html.parser as h
 else:
     from urllib2 import urlopen, quote, build_opener, HTTPCookieProcessor
     from httplib import HTTPConnection
     from StringIO import StringIO
-    from HTMLParser import HTMLParser
-    h = HTMLParser()
     reload(sys)
     sys.setdefaultencoding('utf8')
 
@@ -253,14 +249,14 @@ def google(text):
     0 result
     """
     r = urlopen(
-        'https://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=1&q=' +
+        'https://www.googleapis.com/customsearch/v1?key=AIzaSyDuesDCP1pqw6Ev_3zEAG4xuIKYp675oDw&cx=002790383760335821747:hufomuuaviw&q=' +
         quote(text))
-    data = json.loads(r.read().decode())['responseData']
+    data = json.loads(r.read().decode())
     r.close()
-    if not data['results']:
+    if 'items' not in data:
         return '0 result'
-    return h.unescape(data['results'][0]['titleNoFormatting']) + \
-    ' ' +  data['results'][0]['unescapedUrl']
+    return data['items'][0]['title'] + \
+    ' ' +  data['items'][0]['link']
 
 def translate(direction, text):
     """
