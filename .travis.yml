@@ -4,4 +4,4 @@ python:
 cache: pip
 install:
 - "pip install -r requirements.txt"
-script: sh -c 'python src/luser.py & while true; do echo .; sleep 10m; done'
+script: python src/luser.py & while kill -0 $!; do echo .; sleep 10m; done
