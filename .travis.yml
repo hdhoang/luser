@@ -2,8 +2,6 @@ language: python
 python:
 - "3.5"
 cache: pip
-install: 
-- sudo apt-get -qq update
-- sudo apt-get install -y watch
+install:
 - "pip install -r requirements.txt"
-script: watch python src/luser.py
+script: watch python src/luser.py | cat
