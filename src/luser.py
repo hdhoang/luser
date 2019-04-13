@@ -119,9 +119,6 @@ def relay(c, target, nick):
     del relay_msg[nick.lower()]
 luser.on_nick = lambda c, e: relay(c, "#vnluser", e.target)
 
-# The next lambdas are abusing python logical operator, but they read
-#    like English.
-
 def luser_joins(e):
     if e.source.nick not in lusers:
         lusers.append(e.source.nick)
@@ -134,7 +131,13 @@ def on_join(c, e):
     relay(c, e.target, nick)
 luser.on_join = on_join
 
-luser.on_quit = lambda c, e: e.source.startswith(NAME) and lusers.remove(e.source.nick)
+def on_quit(c, e):
+    if e.source.startswith(NAME):
+        try:
+            lusers.remove(e.source.nick)
+        except ValueError:
+            logger.info('"%s" in not in "%s"' % (e.source.nick, lusers))
+luser.on_quit = on_quit
 
 # Actual message processing. Ignore the other lusers.
 
