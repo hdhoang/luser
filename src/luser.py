@@ -3,6 +3,7 @@
 # external batteries
 from bs4 import BeautifulSoup
 from irc import bot
+from ib3 import auth
 
 from collections import defaultdict
 from random import randint
@@ -42,7 +43,15 @@ def setup_logging(filename, path=None, verbose=False):
     logger.addHandler(file_log)
 
 NAME = "luser"
-luser = bot.SingleServerIRCBot([("chat.freenode.net", 8000)], NAME, NAME)
+PASSWORD = os.environ["FREENODE_PASSWORD"]
+
+class Luser(auth.SASL, bot.SingleServerIRCBot):
+    pass
+luser = Luser([("chat.freenode.net", 8000)],
+              ident_password=PASSWORD,
+              realname=NAME,
+   	      nickname=NAME + "-0",
+              channels=["#vnluser", "#luser-test"])
 
 def main():
     setup_logging("luser.log")
