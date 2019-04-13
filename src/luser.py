@@ -50,7 +50,7 @@ class Luser(auth.SASL, bot.SingleServerIRCBot):
 luser = Luser([("chat.freenode.net", 8000)],
               ident_password=PASSWORD,
               realname=NAME,
-   	      nickname=NAME + "-0",
+   	      nickname='{}-{}'.format(NAME, str(randint(0, 9))),
               channels=["#vnluser", "#luser-test"])
 
 def main():
