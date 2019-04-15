@@ -14,7 +14,7 @@ Building for ARM is a bit convoluted:
 
 * Python version
 
-Install dependencies: =pip3 install --user bs4 irc=
+Install dependencies: =pip3 install --user ib3 bs4 irc=
 
 * Go version
 
