@@ -202,6 +202,7 @@ def title(text):
     titles = []
     urls = filter(lambda w: w.startswith('http'), text.split())
     for u in urls:
+        u = u.replace("//mobile.twitter.com/", "//twitter.com/")
         request = build_opener(HTTPCookieProcessor())
         request.addheaders = [('Accept-Encoding', 'gzip'), ('User-Agent', 'Mozilla/5.0')]
         response = request.open(u)
