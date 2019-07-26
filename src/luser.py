@@ -198,7 +198,7 @@ def title(text):
     >>> print(title('https://imgur.com/M18GYfw?r https://imgur.com/GUFyoUa?r'))
     Glorious new key cap set for my work keyboard! - Imgur
     """
-    uninteresting = ["XKCDB: The: The #xkcd Quote Database", "Saturday Morning Breakfast Cereal", "Library Genesis"]
+    uninteresting = ["XKCDB: The: The #xkcd Quote Database", "Saturday Morning Breakfast Cereal", "Library Genesis", "Bloomberg - Are you a robot?"]
     titles = []
     urls = filter(lambda w: w.startswith('http'), text.split())
     for u in urls:
